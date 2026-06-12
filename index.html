@@ -1232,13 +1232,12 @@ function update(dt) {
             spawnFloater(`${a.hp} HP left`, a.x, a.y - 30, '#ff9f1c', 1.0);
           }
         } else {
-          if (b.wrongRisk !== undefined && !b.wrongRisk) return;
+          // Shooting a wrong-answer alien: destroy it, reset combo, but NO life penalty.
+          // Lives are only lost when a wrong alien reaches the bottom untouched.
           a.hit = true;
-          explode(a.x, a.y, '#ff4466', 8);
+          explode(a.x, a.y, '#555', 6);
           combo = 0;
-          if (shieldActive) { shieldActive = false; spawnFloater('SHIELD BROKEN', a.x, a.y - 20, '#4d96ff', 1.2); }
-          else { lives--; doFlash('#ff0000'); triggerShake(10); spawnFloater('✗ WRONG', a.x, a.y - 20, '#ff4466', 1.0); }
-          if (lives <= 0) endGame();
+          spawnFloater('✗ WRONG', a.x, a.y - 20, '#ff8888', 0.9);
         }
       }
     });
@@ -1247,18 +1246,19 @@ function update(dt) {
   // Remove dead bullets
   bullets = bullets.filter(b => !b.hit && b.y > -30 && b.y < H + 30 && b.x > -50 && b.x < W + 50);
 
-  // Alien reaches bottom — only wrong-answer aliens cost a life
+  // Alien reaches bottom
+  // Wrong aliens reaching the bottom = lose a life (you let them through)
+  // Correct alien reaching the bottom = no penalty (it just escapes)
   aliens.forEach(a => {
-    if (!a.hit && a.y > H + 20) {
-      a.hit = true;
-      if (!a.isCorrect) {
-        combo = 0;
-        if (shieldActive) { shieldActive = false; spawnFloater('SHIELD BROKEN', W/2, H/2, '#4d96ff', 1.2); }
-        else {
-          lives--;
-          if (lives <= 0) endGame();
-        }
-      }
+    if (a.hit || a.y <= H + 20) return;
+    a.hit = true;
+    if (!a.isCorrect) {
+      combo = 0;
+      doFlash('#ff0000');
+      triggerShake(6);
+      spawnFloater('✗ GOT THROUGH!', a.x, H - 40, '#ff4466', 1.2);
+      if (shieldActive) { shieldActive = false; spawnFloater('SHIELD BROKEN', W/2, H/2, '#4d96ff', 1.2); }
+      else { lives--; if (lives <= 0) endGame(); }
     }
   });
 
