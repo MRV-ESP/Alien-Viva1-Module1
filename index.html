@@ -1228,6 +1228,8 @@ function update(dt) {
             if (combo >= 5) spawnFloater(`🔥 ×${combo}!`, a.x, a.y - 40, '#ff9f1c', 1.0);
             if (Math.random() < 0.2) spawnPowerup(a.x, a.y);
             doFlash('#00ffcc');
+            // Vanish all remaining wrong-answer aliens immediately
+            aliens.forEach(other => { if (!other.hit) { other.hit = true; explode(other.x, other.y, '#444', 5); } });
           } else {
             spawnFloater(`${a.hp} HP left`, a.x, a.y - 30, '#ff9f1c', 1.0);
           }
