@@ -779,14 +779,16 @@ function initShip() {
 
 // ─── ALIENS ──────────────────────────────────────────────────────────────────
 const ALIEN_COLORS = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c77dff','#ff9f1c'];
-const ALIEN_EMOJIS = ['👾','🛸','🤖','👽','🔮','💀'];
+// Each alien type has a unique canvas-drawn body (no emoji)
+const ALIEN_TYPES = ['cyclops','blob','spider','ufo','horns','crab'];
 
 function measureLabel(label) {
   ctx.font = 'bold 14px Courier New';
   const lines = wrapLabel(label, 160);
   const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + 28;
-  const h = lines.length > 1 ? 62 : 50;
-  return { w: Math.max(w, 80), h };
+  // Box only needs to fit the text — alien body is drawn above
+  const h = lines.length > 1 ? 36 : 26;
+  return { w: Math.max(w, 90), h };
 }
 
 function wrapLabel(label, maxPx) {
@@ -816,7 +818,7 @@ function spawnAlienWave() {
   const startY = -70;
   const spd = cfg.baseSpd + level * cfg.spdPerLevel;
   const bossDisguiseColor = '#6622aa';
-  const bossDisguiseEmoji = '🔮';
+  const bossDisguiseType  = 'horns';
 
   allAnswers.forEach((ans, i) => {
     const isCorrect = ans === q.answer;
@@ -836,7 +838,7 @@ function spawnAlienWave() {
       label: ans, isCorrect,
       spd: isBossWave ? spd * 1.15 : spd,
       color: isBossWave ? bossDisguiseColor : ALIEN_COLORS[i % ALIEN_COLORS.length],
-      emoji: isBossWave ? bossDisguiseEmoji : ALIEN_EMOJIS[i % ALIEN_EMOJIS.length],
+      alienType: isBossWave ? bossDisguiseType : ALIEN_TYPES[i % ALIEN_TYPES.length],
       hit: false, wobble: Math.random() * Math.PI * 2,
       personality, hp: isBoss ? 3 : 1, isBoss,
       zigDir: Math.random() < 0.5 ? 1 : -1, zigTimer: 0,
@@ -991,18 +993,186 @@ function drawShip() {
   ctx.setLineDash([]);
 }
 
+// Draw a unique alien creature above the label box for each alien type
+function drawAlienBody(ctx, type, color, x, y, wobble, isCorrect) {
+  const t = Date.now();
+  const bob = Math.sin(wobble * 2) * 2;
+  const by = y + bob;
+  const glow = isCorrect ? 14 : 6;
+
+  ctx.shadowColor = color;
+  ctx.shadowBlur = glow;
+
+  if (type === 'cyclops') {
+    // Round blob body with one big eye
+    ctx.fillStyle = color + 'dd';
+    ctx.beginPath(); ctx.ellipse(x, by, 18, 16, 0, 0, Math.PI*2); ctx.fill();
+    // Antennae
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x-7, by-14); ctx.lineTo(x-10, by-26); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+7, by-14); ctx.lineTo(x+10, by-26); ctx.stroke();
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x-10, by-27, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x+10, by-27, 3, 0, Math.PI*2); ctx.fill();
+    // Big eye
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(x, by-2, 8, 9, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x + Math.sin(t/800)*2, by-2, 5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x+2, by-5, 2, 0, Math.PI*2); ctx.fill();
+    // Mouth
+    ctx.strokeStyle = '#0a0a1a'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, by+8, 5, 0.2, Math.PI-0.2); ctx.stroke();
+    // Stubby legs
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(x-10, by+14); ctx.lineTo(x-14, by+22); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+10, by+14); ctx.lineTo(x+14, by+22); ctx.stroke();
+
+  } else if (type === 'blob') {
+    // Wobbly multi-eyed blob
+    const sq = Math.sin(t/300)*0.08;
+    ctx.fillStyle = color + 'dd';
+    ctx.beginPath(); ctx.ellipse(x, by, 20+sq*10, 15-sq*5, 0, 0, Math.PI*2); ctx.fill();
+    // Three eyes
+    for (let i = -1; i <= 1; i++) {
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x + i*8, by-3, 5, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x + i*8 + Math.sin(t/600+i)*1.5, by-3, 3, 0, Math.PI*2); ctx.fill();
+    }
+    // Wavy bottom tentacles
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    for (let i = -2; i <= 2; i++) {
+      const tx = x + i*8;
+      ctx.beginPath(); ctx.moveTo(tx, by+13);
+      ctx.quadraticCurveTo(tx + Math.sin(t/400+i)*4, by+20, tx, by+26);
+      ctx.stroke();
+    }
+    // Antenna
+    ctx.beginPath(); ctx.moveTo(x, by-14); ctx.lineTo(x+Math.sin(t/500)*5, by-28); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x+Math.sin(t/500)*5, by-30, 4, 0, Math.PI*2); ctx.fill();
+
+  } else if (type === 'spider') {
+    // Spider body with many legs
+    ctx.fillStyle = color + 'dd';
+    ctx.beginPath(); ctx.ellipse(x, by-4, 12, 10, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x, by+8, 8, 7, 0, 0, Math.PI*2); ctx.fill();
+    // Eyes
+    ctx.fillStyle = '#fff';
+    for (let i = -1; i <= 1; i+=2) {
+      ctx.beginPath(); ctx.arc(x+i*5, by-6, 4, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#f00'; ctx.beginPath(); ctx.arc(x+i*5, by-6, 2, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff';
+    }
+    // Legs (4 per side)
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+    const legAngles = [-0.9,-0.5, 0.5, 0.9];
+    legAngles.forEach((ang, li) => {
+      const wave = Math.sin(t/200 + li) * 0.15;
+      [-1,1].forEach(side => {
+        ctx.beginPath();
+        ctx.moveTo(x + side*10, by);
+        ctx.lineTo(x + side*(10 + 14*Math.cos(ang+wave)), by + 14*Math.sin(ang+wave));
+        ctx.stroke();
+      });
+    });
+
+  } else if (type === 'ufo') {
+    // Classic saucer with dome
+    // Saucer body
+    ctx.fillStyle = color + 'bb';
+    ctx.beginPath(); ctx.ellipse(x, by+6, 22, 7, 0, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
+    // Spinning lights
+    for (let i = 0; i < 5; i++) {
+      const angle = (t/300) + (Math.PI*2/5)*i;
+      const lx = x + Math.cos(angle)*14, ly = by+6;
+      ctx.fillStyle = i%2===0 ? '#ffd700' : '#fff';
+      ctx.beginPath(); ctx.arc(lx, ly, 2.5, 0, Math.PI*2); ctx.fill();
+    }
+    // Dome
+    ctx.fillStyle = color + '99';
+    ctx.beginPath(); ctx.ellipse(x, by-1, 13, 12, 0, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(x, by-1, 13, 12, 0, Math.PI, 0); ctx.stroke();
+    // Alien inside dome
+    ctx.fillStyle = '#0a0a1a';
+    ctx.beginPath(); ctx.ellipse(x, by-4, 6, 5, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#7affdf';
+    ctx.beginPath(); ctx.arc(x-2, by-5, 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+2, by-5, 2, 0, Math.PI*2); ctx.fill();
+    // Beam
+    ctx.fillStyle = color + '33';
+    ctx.beginPath(); ctx.moveTo(x-6, by+13); ctx.lineTo(x+6, by+13); ctx.lineTo(x+14, by+32); ctx.lineTo(x-14, by+32); ctx.closePath(); ctx.fill();
+
+  } else if (type === 'horns') {
+    // Demon alien with horns
+    ctx.fillStyle = color + 'dd';
+    ctx.beginPath(); ctx.ellipse(x, by, 16, 18, 0, 0, Math.PI*2); ctx.fill();
+    // Horns
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.moveTo(x-10, by-14); ctx.lineTo(x-16, by-30); ctx.lineTo(x-5, by-16); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x+10, by-14); ctx.lineTo(x+16, by-30); ctx.lineTo(x+5, by-16); ctx.closePath(); ctx.fill();
+    // Glowing eyes
+    ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 12;
+    ctx.fillStyle = '#ff2222';
+    ctx.beginPath(); ctx.ellipse(x-6, by-4, 5, 4, -0.3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x+6, by-4, 5, 4, 0.3, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = glow; ctx.shadowColor = color;
+    // Fangs
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.moveTo(x-4, by+6); ctx.lineTo(x-6, by+13); ctx.lineTo(x-2, by+6); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x+4, by+6); ctx.lineTo(x+6, by+13); ctx.lineTo(x+2, by+6); ctx.closePath(); ctx.fill();
+    // Arms
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(x-14, by+2); ctx.lineTo(x-26, by+10); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+14, by+2); ctx.lineTo(x+26, by+10); ctx.stroke();
+
+  } else { // crab
+    // Crab-like alien with pincers
+    ctx.fillStyle = color + 'dd';
+    ctx.beginPath(); ctx.ellipse(x, by, 18, 13, 0, 0, Math.PI*2); ctx.fill();
+    // Eye stalks
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x-8, by-11); ctx.lineTo(x-10, by-22); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+8, by-11); ctx.lineTo(x+10, by-22); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x-10, by-23, 5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x+10, by-23, 5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x-10+Math.sin(t/700)*2, by-23, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x+10+Math.sin(t/700)*2, by-23, 3, 0, Math.PI*2); ctx.fill();
+    // Pincers
+    const pwave = Math.sin(t/400)*0.2;
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(x-16, by); ctx.lineTo(x-28, by-6+Math.sin(t/300)*3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x-28, by-6+Math.sin(t/300)*3); ctx.lineTo(x-34, by-2+pwave*5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x-28, by-6+Math.sin(t/300)*3); ctx.lineTo(x-33, by-11+pwave*5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+16, by); ctx.lineTo(x+28, by-6+Math.sin(t/300)*3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+28, by-6+Math.sin(t/300)*3); ctx.lineTo(x+34, by-2-pwave*5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+28, by-6+Math.sin(t/300)*3); ctx.lineTo(x+33, by-11-pwave*5); ctx.stroke();
+    // Legs
+    ctx.lineWidth = 1.5;
+    for (let i = -1; i <= 1; i+=2) {
+      ctx.beginPath(); ctx.moveTo(x+i*10, by+10); ctx.lineTo(x+i*16, by+22); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+i*6, by+11); ctx.lineTo(x+i*10, by+24); ctx.stroke();
+    }
+  }
+
+  ctx.shadowBlur = 0;
+}
+
 function drawAlien(a) {
   a.wobble += 0.04;
   const wx = Math.sin(a.wobble) * (a.personality === 'zigzag' ? 0 : 3);
   const x = a.x + wx, y = a.y;
   const now = Date.now();
 
-  // Flash when hit
-  if (a.hp > 1 && now - a.flashTime < 200) {
-    ctx.shadowColor = '#fff'; ctx.shadowBlur = 20;
-  }
+  const flashing = a.hp > 1 && now - a.flashTime < 200;
 
-  ctx.fillStyle = a.color + 'cc';
+  // Draw alien body above the label box
+  ctx.save();
+  if (flashing) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 24; }
+  drawAlienBody(ctx, a.alienType, a.color, x, y - a.h/2 - 28, a.wobble, a.isCorrect);
+  ctx.restore();
+
+  // Label box
+  ctx.shadowColor = a.color;
+  ctx.shadowBlur = a.isCorrect ? 10 : 4;
+  ctx.fillStyle = '#0a0a1a';
   ctx.strokeStyle = a.color;
   ctx.lineWidth = a.isCorrect ? 2.5 : 1.5;
   const r = 8;
@@ -1013,18 +1183,14 @@ function drawAlien(a) {
   ctx.arcTo(x - a.w/2, y + a.h/2, x - a.w/2, y - a.h/2, r);
   ctx.arcTo(x - a.w/2, y - a.h/2, x + a.w/2, y - a.h/2, r);
   ctx.closePath(); ctx.fill(); ctx.stroke();
-
-  // Emoji
-  ctx.font = '18px serif'; ctx.textAlign = 'center';
-  ctx.fillText(a.emoji, x, y - a.h/2 + 22);
-
-  // Label (possibly wrapped)
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Courier New'; ctx.textAlign = 'center';
   ctx.shadowBlur = 0;
+
+  // Label text
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Courier New'; ctx.textAlign = 'center';
   const lines = wrapLabel(a.label, a.w - 16);
   const lineH = 16;
   const totalH = lines.length * lineH;
-  const startY = y - totalH/2 + 10 + (a.h > 55 ? 6 : 0);
+  const startY = y - totalH/2 + 8;
   lines.forEach((line, li) => ctx.fillText(line, x, startY + li * lineH));
 
   // HP bars for boss
@@ -1234,12 +1400,15 @@ function update(dt) {
             spawnFloater(`${a.hp} HP left`, a.x, a.y - 30, '#ff9f1c', 1.0);
           }
         } else {
-          // Shooting a wrong-answer alien: destroy it, reset combo, but NO life penalty.
-          // Lives are only lost when a wrong alien reaches the bottom untouched.
+          // Shooting a wrong-answer alien: lose a life
           a.hit = true;
-          explode(a.x, a.y, '#555', 6);
+          explode(a.x, a.y, '#ff4466', 10);
           combo = 0;
-          spawnFloater('✗ WRONG', a.x, a.y - 20, '#ff8888', 0.9);
+          doFlash('#ff0000');
+          triggerShake(10);
+          spawnFloater('✗ WRONG', a.x, a.y - 20, '#ff4466', 1.0);
+          if (shieldActive) { shieldActive = false; spawnFloater('SHIELD BROKEN', a.x, a.y - 20, '#4d96ff', 1.2); }
+          else { lives--; if (lives <= 0) endGame(); }
         }
       }
     });
